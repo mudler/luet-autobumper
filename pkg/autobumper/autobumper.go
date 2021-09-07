@@ -9,8 +9,15 @@ type AutoBumper struct {
 	crawlers []crawler
 }
 
+type Bumps struct {
+	Diffs map[LuetPackage]LuetPackage
+}
+
 func New(p ...Option) *AutoBumper {
-	c := Config{}
+	c := Config{
+		Git:  &GitOptions{},
+		Luet: &LuetOptions{},
+	}
 	c.Apply(p...)
 
 	return &AutoBumper{
@@ -23,10 +30,13 @@ func (ab *AutoBumper) Bump(p LuetPackage, v string) error {
 	return nil
 }
 
-func (ab *AutoBumper) Run() error {
+func (ab *AutoBumper) Run() (Bumps, error) {
+
+	b := Bumps{}
+
 	packs, err := ab.getPackages(ab.config.Luet.PackageTreePath)
 	if err != nil {
-		return err
+		return b, err
 	}
 
 	// TODO: Collect error instead of returning immediately
@@ -34,10 +44,10 @@ func (ab *AutoBumper) Run() error {
 		for _, c := range ab.crawlers {
 			if found, version := c.Crawl(p); found {
 				if err := ab.Bump(p, version); err != nil {
-					return err
+					return b, err
 				}
 			}
 		}
 	}
-	return nil
+	return b, nil
 }
