@@ -18,6 +18,19 @@ type LuetPackage struct {
 	Version  string `json:"version"`
 }
 
+func (p LuetPackage) Version(v string) LuetPackage {
+	pp := &LuetPackage
+	pp.Version = v
+	return *p
+}
+
+type Packages []LuetPackage
+
+func (p Packages) In(LuetPackage) bool {
+	// TODO: Check if given package @ version is there in the set
+	return false
+}
+
 func (ab *AutoBumper) getPackages(dir string) ([]LuetPackage, error) {
 	jsonPacks, err := utils.RunSH(fmt.Sprintf("luet tree pkglist --tree %s -o json", ab.config.Luet.PackageTreePath))
 	if err != nil {
