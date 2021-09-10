@@ -3,19 +3,80 @@ package autobumper
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"path/filepath"
 
 	"github.com/Luet-lab/luet-autobumper/pkg/utils"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
+)
+
+const (
+	collectionFile = "collection.yaml"
+	definitionFile = "definition.yaml"
 )
 
 type treeResult struct {
 	Packages []LuetPackage `json:"packages"`
 }
 type LuetPackage struct {
-	Name     string `json:"name"`
+	Name     string `json:"name" yaml:"name"`
 	Path     string `json:"path"`
-	Category string `json:"category"`
-	Version  string `json:"version"`
+	Category string `json:"category" yaml:"category"`
+	Version  string `json:"version" yaml:"version"`
+}
+
+type LuetPackageWithLabels struct {
+	LuetPackage
+	Labels map[string]string `yaml:"labels"`
+}
+
+func (p LuetPackage) IsCollection() bool {
+	return utils.Exists(filepath.Join(p.Path, collectionFile))
+}
+
+type packagesLabels struct {
+	Packages []LuetPackageWithLabels `yaml:"packages"`
+}
+
+func (p LuetPackage) Match(pp LuetPackage) bool {
+	return p.Category == pp.Category &&
+		p.Name == pp.Name &&
+		p.Version == pp.Version
+}
+
+func (p LuetPackage) ReadLabels() (map[string]string, error) {
+	result := map[string]string{}
+	if p.IsCollection() {
+		res := &packagesLabels{}
+		dat, err := ioutil.ReadFile(filepath.Join(p.Path, collectionFile))
+		if err != nil {
+			return result, err
+		}
+		if err := yaml.Unmarshal(dat, res); err != nil {
+			return result, err
+		}
+
+		for _, ps := range res.Packages {
+			if ps.Match(p) {
+				result = ps.Labels
+				break
+			}
+		}
+	} else {
+		res := &LuetPackageWithLabels{}
+
+		dat, err := ioutil.ReadFile(filepath.Join(p.Path, definitionFile))
+		if err != nil {
+			return result, err
+		}
+		if err := yaml.Unmarshal(dat, res); err != nil {
+			return result, err
+		}
+		result = res.Labels
+	}
+
+	return result, nil
 }
 
 func (p LuetPackage) WithVersion(v string) LuetPackage {
