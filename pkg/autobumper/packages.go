@@ -27,8 +27,8 @@ type LuetPackage struct {
 }
 
 type LuetPackageWithLabels struct {
-	LuetPackage
-	Labels map[string]string `yaml:"labels"`
+	LuetPackage `yaml:",inline"`
+	Labels      map[string]string `yaml:"labels"`
 }
 
 // IsCollection returns true if the package is part of a collection
@@ -58,7 +58,6 @@ func (p LuetPackage) ReadLabels() (map[string]string, error) {
 		if err := yaml.Unmarshal(dat, res); err != nil {
 			return result, err
 		}
-
 		for _, ps := range res.Packages {
 			if ps.Match(p) {
 				result = ps.Labels
