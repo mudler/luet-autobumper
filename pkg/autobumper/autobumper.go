@@ -10,7 +10,7 @@ type crawler interface {
 
 type plugin interface {
 	Apply(LuetPackage) bool
-	Bump(LuetPackage, Bumps) error
+	Bump(LuetPackage, LuetPackage) error
 }
 
 type AutoBumper struct {
@@ -38,7 +38,7 @@ func New(p ...Option) *AutoBumper {
 func (ab *AutoBumper) Bump(src LuetPackage, bumps Bumps) error {
 	for _, p := range ab.config.plugins {
 		if p.Apply(src) {
-			if err := p.Bump(src, bumps); err != nil {
+			if err := p.Bump(src, bumps.Diffs[src]); err != nil {
 				return err
 			}
 			break

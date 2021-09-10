@@ -1,31 +1,42 @@
 package autobumper_test
 
 import (
-	"fmt"
-
 	"github.com/Luet-lab/luet-autobumper/pkg/autobumper"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-type FakeCrawler struct{}
+type FakeCrawler struct{ FixedVersion string }
 
 func (f *FakeCrawler) Crawl(autobumper.LuetPackage) (bool, string) {
-	return true, "1.99999"
+	return true, f.FixedVersion
 }
 
 var _ = Describe("Autobumper", func() {
 	Context("Package scanning", func() {
-
-		It("Detects files in a tree", func() {
+		It("Detects packages in a tree", func() {
 			ab := autobumper.New(
 				autobumper.WithTreePath("../../tests/fixtures"),
-				autobumper.WithCrawler(&FakeCrawler{}),
+				autobumper.WithCrawler(&FakeCrawler{FixedVersion: "1.99999"}),
 			)
 			bumps, err := ab.Run()
 			Expect(err).ToNot(HaveOccurred())
-			Expect(len(bumps.Diffs)).ToNot(Equal(0))
-			fmt.Println(bumps.Diffs)
+			diffs := []autobumper.LuetPackage{}
+			for _, d := range bumps.Diffs {
+				diffs = append(diffs, d)
+			}
+			Expect(len(diffs)).To(Equal(1))
+			Expect(diffs[0].Version).To(Equal("1.99999"))
+		})
+
+		It("Doesn't bump already existing packages in a tree", func() {
+			ab := autobumper.New(
+				autobumper.WithTreePath("../../tests/fixtures"),
+				autobumper.WithCrawler(&FakeCrawler{FixedVersion: "1.0"}),
+			)
+			bumps, err := ab.Run()
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(bumps.Diffs)).To(Equal(0))
 		})
 	})
 })

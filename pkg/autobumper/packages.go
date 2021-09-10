@@ -26,8 +26,12 @@ func (p LuetPackage) WithVersion(v string) LuetPackage {
 
 type Packages []LuetPackage
 
-func (p Packages) In(LuetPackage) bool {
-	// TODO: Check if given package @ version is there in the set
+func (pp Packages) In(c LuetPackage) bool {
+	for _, p := range pp {
+		if p.Version == c.Version {
+			return true
+		}
+	}
 	return false
 }
 
