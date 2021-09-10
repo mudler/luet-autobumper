@@ -20,6 +20,10 @@ type Config struct {
 	Luet      *LuetOptions
 	PkgApi    string
 	KeepGoing bool
+
+	// crawlers simply detect new versions from a defined source
+	crawlers []crawler
+	plugins  []plugin
 }
 
 // Apply applies the given options to the config, returning the first error

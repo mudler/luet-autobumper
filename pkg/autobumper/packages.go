@@ -18,10 +18,10 @@ type LuetPackage struct {
 	Version  string `json:"version"`
 }
 
-func (p LuetPackage) Version(v string) LuetPackage {
-	pp := &LuetPackage
+func (p LuetPackage) WithVersion(v string) LuetPackage {
+	pp := &p
 	pp.Version = v
-	return *p
+	return *pp
 }
 
 type Packages []LuetPackage
@@ -37,8 +37,7 @@ func (ab *AutoBumper) getPackages(dir string) ([]LuetPackage, error) {
 		return []LuetPackage{}, errors.Wrap(err, "failed getting packages with luet")
 	}
 
-	var packages *treeResult
-
+	packages := &treeResult{}
 	if err := json.Unmarshal([]byte(jsonPacks), packages); err != nil {
 		return []LuetPackage{}, errors.Wrap(err, "failed getting packages with luet")
 	}

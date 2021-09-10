@@ -1,12 +1,20 @@
 package autobumper
 
+import "github.com/hashicorp/go-multierror"
+
 type crawler interface {
+	// Crawl return a boolean and a string
+	// The boolean is wether there is a new version available, and the string is the new version found
 	Crawl(LuetPackage) (bool, string)
 }
 
+type plugin interface {
+	Apply(LuetPackage) bool
+	Bump(LuetPackage, Bumps) error
+}
+
 type AutoBumper struct {
-	config   Config
-	crawlers []crawler
+	config Config
 }
 
 type Bumps struct {
@@ -25,15 +33,23 @@ func New(p ...Option) *AutoBumper {
 	}
 }
 
-// TODO: maybe use interfaces here too?
-func (ab *AutoBumper) Bump(p LuetPackage, v string) error {
-	// TODO: Retrieve labels for behavior. Decide how to bump (inplace, add a new package)
+// TODO: Retrieve labels for behavior. Decide how to bump (inplace, add a new package)
+
+func (ab *AutoBumper) Bump(src LuetPackage, bumps Bumps) error {
+	for _, p := range ab.config.plugins {
+		if p.Apply(src) {
+			if err := p.Bump(src, bumps); err != nil {
+				return err
+			}
+			break
+		}
+	}
 	return nil
 }
 
 func (ab *AutoBumper) Run() (Bumps, error) {
 
-	b := Bumps{}
+	b := Bumps{Diffs: make(map[LuetPackage]LuetPackage)}
 
 	packs, err := ab.getPackages(ab.config.Luet.PackageTreePath)
 	if err != nil {
@@ -42,15 +58,16 @@ func (ab *AutoBumper) Run() (Bumps, error) {
 
 	// TODO: Collect error instead of returning immediately
 	// TOO: crowlers retrieve labels for behavior
-
 	for _, p := range packs {
-		for _, c := range ab.crawlers {
-			if found, version := c.Crawl(p); found && !Packages(packs).In(p.Version(version)) {
-				if err := ab.Bump(p, version); err != nil {
-					return b, err
+		for _, c := range ab.config.crawlers {
+			if found, version := c.Crawl(p); found && !Packages(packs).In(p.WithVersion(version)) {
+				b.Diffs[p] = p.WithVersion(version)
+				if berr := ab.Bump(p, b); berr != nil {
+					err = multierror.Append(err, berr)
 				}
 			}
 		}
 	}
-	return b, nil
+
+	return b, err
 }

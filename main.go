@@ -14,7 +14,7 @@
 
 package main
 
-import "luet-autobumper/cmd"
+import "github.com/Luet-lab/luet-autobumper/cmd"
 
 func main() {
 	cmd.Execute()
