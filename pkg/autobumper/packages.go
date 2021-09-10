@@ -31,6 +31,7 @@ type LuetPackageWithLabels struct {
 	Labels map[string]string `yaml:"labels"`
 }
 
+// IsCollection returns true if the package is part of a collection
 func (p LuetPackage) IsCollection() bool {
 	return utils.Exists(filepath.Join(p.Path, collectionFile))
 }
@@ -47,6 +48,7 @@ func (p LuetPackage) Match(pp LuetPackage) bool {
 
 func (p LuetPackage) ReadLabels() (map[string]string, error) {
 	result := map[string]string{}
+	// If it is a collection, we have to loop over and check which one is the corresponding package we are looking into
 	if p.IsCollection() {
 		res := &packagesLabels{}
 		dat, err := ioutil.ReadFile(filepath.Join(p.Path, collectionFile))
@@ -64,6 +66,7 @@ func (p LuetPackage) ReadLabels() (map[string]string, error) {
 			}
 		}
 	} else {
+		// If it's not a collection, we simply parse the package and return the labels
 		res := &LuetPackageWithLabels{}
 
 		dat, err := ioutil.ReadFile(filepath.Join(p.Path, definitionFile))
@@ -79,6 +82,7 @@ func (p LuetPackage) ReadLabels() (map[string]string, error) {
 	return result, nil
 }
 
+// WithVersion returns a new package copy with the version changed
 func (p LuetPackage) WithVersion(v string) LuetPackage {
 	pp := &p
 	pp.Version = v
@@ -87,6 +91,7 @@ func (p LuetPackage) WithVersion(v string) LuetPackage {
 
 type Packages []LuetPackage
 
+// In checks if the package is contained in the slice or not
 func (pp Packages) In(c LuetPackage) bool {
 	for _, p := range pp {
 		if p.Version == c.Version {
