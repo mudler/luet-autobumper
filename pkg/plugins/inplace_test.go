@@ -72,5 +72,44 @@ var _ = Describe("Inplace plugin", func() {
 
 		})
 
+		It("bumps a package (a collection)", func() {
+			dir, err := ioutil.TempDir(os.TempDir(), "")
+			Expect(err).ToNot(HaveOccurred())
+
+			err = copy.Copy("../../tests/fixtures/collection", dir)
+			Expect(err).ToNot(HaveOccurred())
+
+			defer os.RemoveAll(dir)
+
+			in := Inplace{}
+
+			err = in.Bump(
+				autobumper.LuetPackageWithLabels{
+					LuetPackage: autobumper.LuetPackage{
+						Name:     "foo",
+						Path:     dir,
+						Version:  "1.0",
+						Category: "test",
+					},
+				},
+				autobumper.LuetPackageWithLabels{
+					LuetPackage: autobumper.LuetPackage{
+						Name:     "foo",
+						Path:     dir,
+						Category: "test",
+						Version:  "1.3+1",
+					},
+				},
+			)
+			Expect(err).ToNot(HaveOccurred())
+
+			p := &autobumper.TreeResult{}
+			data, err := ioutil.ReadFile(filepath.Join(dir, "collection.yaml"))
+			Expect(err).ToNot(HaveOccurred())
+
+			err = yaml.Unmarshal(data, p)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(p.Packages[0].Version).To(Equal("1.3+1"))
+		})
 	})
 })

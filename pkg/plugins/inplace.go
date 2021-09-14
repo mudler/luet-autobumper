@@ -2,30 +2,16 @@ package plugins
 
 import (
 	"fmt"
-	"io/ioutil"
 
 	"github.com/Luet-lab/luet-autobumper/pkg/autobumper"
 	"github.com/mikefarah/yq/v4/pkg/yqlib"
-	"gopkg.in/yaml.v3"
 )
 
 type Inplace struct {
 }
 
-var completedSuccessfully bool
-
 func (inplace *Inplace) Bump(src autobumper.LuetPackageWithLabels, dst autobumper.LuetPackageWithLabels) error {
-
-	var root yaml.Node
-
-	dat, err := ioutil.ReadFile(src.GetPath())
-	if err != nil {
-		return err
-	}
-	if err := yaml.Unmarshal(dat, &root); err != nil {
-		return err
-	}
-
+	var completedSuccessfully bool
 	var expr string
 	if !src.IsCollection() {
 
@@ -45,12 +31,10 @@ func (inplace *Inplace) Bump(src autobumper.LuetPackageWithLabels, dst autobumpe
 		expr = fmt.Sprintf(".packages[%d].version = \"%s\"", index, dst.Version)
 
 	}
-
 	format, err := yqlib.OutputFormatFromString("yaml")
 	if err != nil {
 		return err
 	}
-	//	out := &bytes.Buffer{}
 	writeInPlaceHandler := yqlib.NewWriteInPlaceHandler(src.GetPath())
 	out, err := writeInPlaceHandler.CreateTempFile()
 	if err != nil {
@@ -65,14 +49,8 @@ func (inplace *Inplace) Bump(src autobumper.LuetPackageWithLabels, dst autobumpe
 	streamEvaluator := yqlib.NewStreamEvaluator()
 
 	err = streamEvaluator.EvaluateFiles(expr, []string{src.GetPath()}, printer, true)
-
-	if err != nil {
-		return err
-	}
-	fmt.Println(out)
 	completedSuccessfully = err == nil
-	//return ioutil.WriteFile(dst.GetPath(), out, os.ModePerm)
-	return nil
+	return err
 }
 
 func (inplace *Inplace) Apply(p autobumper.LuetPackageWithLabels) bool {

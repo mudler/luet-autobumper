@@ -17,7 +17,7 @@ const (
 	definitionFile = "definition.yaml"
 )
 
-type treeResult struct {
+type TreeResult struct {
 	Packages []LuetPackage `json:"packages"`
 }
 type LuetPackage struct {
@@ -157,7 +157,7 @@ func (ab *AutoBumper) getPackages(dir string) ([]LuetPackage, error) {
 		return []LuetPackage{}, errors.Wrap(err, "failed getting packages with luet")
 	}
 
-	packages := &treeResult{}
+	packages := &TreeResult{}
 	if err := json.Unmarshal([]byte(jsonPacks), packages); err != nil {
 		return []LuetPackage{}, errors.Wrap(err, "failed getting packages with luet")
 	}
