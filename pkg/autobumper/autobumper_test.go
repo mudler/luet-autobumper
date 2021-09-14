@@ -3,29 +3,12 @@ package autobumper_test
 import (
 	"fmt"
 
+	catalog "github.com/Luet-lab/luet-autobumper/tests/libs"
+
 	"github.com/Luet-lab/luet-autobumper/pkg/autobumper"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
-
-type FakeCrawler struct {
-	FixedVersion     string
-	VersionFromLabel bool
-}
-
-func (f *FakeCrawler) Crawl(p autobumper.LuetPackage) (bool, string) {
-	if f.VersionFromLabel {
-		labels, err := p.ReadLabels()
-		Expect(err).ToNot(HaveOccurred())
-		if v, ok := labels["version"]; ok {
-			return true, v
-		} else {
-			return false, ""
-		}
-	}
-
-	return true, f.FixedVersion
-}
 
 func diffsFromBumps(bumps autobumper.Bumps) []autobumper.LuetPackage {
 	diffs := []autobumper.LuetPackage{}
@@ -41,7 +24,7 @@ func smokeTest(d string) {
 		It("detects packages in a tree", func() {
 			ab := autobumper.New(
 				autobumper.WithTreePath(d),
-				autobumper.WithCrawler(&FakeCrawler{FixedVersion: "1.99999"}),
+				autobumper.WithCrawler(&catalog.FakeCrawler{FixedVersion: "1.99999"}),
 			)
 			bumps, err := ab.Run()
 			Expect(err).ToNot(HaveOccurred())
@@ -53,7 +36,7 @@ func smokeTest(d string) {
 		It("doesn't bump already existing packages in a tree", func() {
 			ab := autobumper.New(
 				autobumper.WithTreePath(d),
-				autobumper.WithCrawler(&FakeCrawler{FixedVersion: "1.0"}),
+				autobumper.WithCrawler(&catalog.FakeCrawler{FixedVersion: "1.0"}),
 			)
 			bumps, err := ab.Run()
 			Expect(err).ToNot(HaveOccurred())
@@ -63,7 +46,7 @@ func smokeTest(d string) {
 		It("does read labels", func() {
 			ab := autobumper.New(
 				autobumper.WithTreePath(d),
-				autobumper.WithCrawler(&FakeCrawler{VersionFromLabel: true}),
+				autobumper.WithCrawler(&catalog.FakeCrawler{VersionFromLabel: true}),
 			)
 			bumps, err := ab.Run()
 			Expect(err).ToNot(HaveOccurred())
@@ -77,4 +60,21 @@ func smokeTest(d string) {
 var _ = Describe("Autobumper", func() {
 	smokeTest("../../tests/fixtures/test_tree")
 	smokeTest("../../tests/fixtures/collection")
+
+	Context("Plugins", func() {
+		It("executes", func() {
+			p := &catalog.FakePlugin{}
+			ab := autobumper.New(
+				autobumper.WithTreePath("../../tests/fixtures/test_tree"),
+				autobumper.WithPlugin(p),
+				autobumper.WithCrawler(&catalog.FakeCrawler{FixedVersion: "1.99999"}),
+			)
+			bumps, err := ab.Run()
+			Expect(err).ToNot(HaveOccurred())
+			diffs := diffsFromBumps(bumps)
+			Expect(len(diffs)).To(Equal(1))
+			Expect(diffs[0].Version).To(Equal("1.99999"))
+			Expect(p.Bumped).To(Equal(true))
+		})
+	})
 })

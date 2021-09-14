@@ -5,12 +5,14 @@ import "github.com/hashicorp/go-multierror"
 type crawler interface {
 	// Crawl return a boolean and a string
 	// The boolean is wether there is a new version available, and the string is the new version found
-	Crawl(LuetPackage) (bool, string)
+	Crawl(LuetPackageWithLabels) (bool, string)
+
+	Apply(LuetPackageWithLabels) bool
 }
 
 type plugin interface {
-	Apply(LuetPackage) bool
-	Bump(LuetPackage, LuetPackage) error
+	Apply(LuetPackageWithLabels) bool
+	Bump(LuetPackageWithLabels, LuetPackageWithLabels) error
 }
 
 type AutoBumper struct {
@@ -37,8 +39,8 @@ func New(p ...Option) *AutoBumper {
 
 func (ab *AutoBumper) Bump(src LuetPackage, bumps Bumps) error {
 	for _, p := range ab.config.plugins {
-		if p.Apply(src) {
-			if err := p.Bump(src, bumps.Diffs[src]); err != nil {
+		if p.Apply(src.WithLabels()) {
+			if err := p.Bump(src.WithLabels(), bumps.Diffs[src].WithLabels()); err != nil {
 				return err
 			}
 			break
@@ -60,10 +62,13 @@ func (ab *AutoBumper) Run() (Bumps, error) {
 	// TOO: crowlers retrieve labels for behavior
 	for _, p := range packs {
 		for _, c := range ab.config.crawlers {
-			if found, version := c.Crawl(p); found && !Packages(packs).In(p.WithVersion(version)) {
-				b.Diffs[p] = p.WithVersion(version)
-				if berr := ab.Bump(p, b); berr != nil {
-					err = multierror.Append(err, berr)
+			pLabels := p.WithLabels()
+			if c.Apply(pLabels) {
+				if found, version := c.Crawl(pLabels); found && !Packages(packs).In(p.WithVersion(version)) {
+					b.Diffs[p] = p.WithVersion(version)
+					if berr := ab.Bump(p, b); berr != nil {
+						err = multierror.Append(err, berr)
+					}
 				}
 			}
 		}

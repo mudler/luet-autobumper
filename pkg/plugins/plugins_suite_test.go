@@ -1,4 +1,4 @@
-package autobumper_test
+package plugins_test
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestAutobumper(t *testing.T) {
+func TestPlugins(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Autobumper test suite")
+	RunSpecs(t, "Plugins test suite")
 }

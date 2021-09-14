@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 
 	"github.com/Luet-lab/luet-autobumper/pkg/utils"
 	"github.com/pkg/errors"
@@ -31,9 +32,39 @@ type LuetPackageWithLabels struct {
 	Labels      map[string]string `yaml:"labels"`
 }
 
+type Collection []LuetPackageWithLabels
+
 // IsCollection returns true if the package is part of a collection
 func (p LuetPackage) IsCollection() bool {
 	return utils.Exists(filepath.Join(p.Path, collectionFile))
+}
+
+func (p LuetPackage) Label(s string) string {
+	labels, _ := p.ReadLabels()
+	if v, ok := labels[s]; ok {
+		return v
+	}
+	return ""
+}
+
+func (p LuetPackage) GetPath() string {
+	if p.IsCollection() {
+		return filepath.Join(p.Path, collectionFile)
+	}
+	return filepath.Join(p.Path, definitionFile)
+}
+
+func (p LuetPackage) WithLabels() LuetPackageWithLabels {
+	labels, _ := p.ReadLabels()
+	return LuetPackageWithLabels{LuetPackage: p, Labels: labels}
+}
+
+func (p LuetPackage) Strategy() string {
+	return strings.ToLower(p.Label("autobump.strategy"))
+}
+
+func (p LuetPackageWithLabels) Strategy() string {
+	return strings.ToLower(p.Labels["autobump.strategy"])
 }
 
 type packagesLabels struct {
@@ -46,19 +77,39 @@ func (p LuetPackage) Match(pp LuetPackage) bool {
 		p.Version == pp.Version
 }
 
+func ReadCollection(src string) ([]LuetPackageWithLabels, error) {
+	res := &packagesLabels{}
+	if !strings.HasSuffix(src, collectionFile) {
+		src = filepath.Join(src, collectionFile)
+	}
+	dat, err := ioutil.ReadFile(src)
+	if err != nil {
+		return []LuetPackageWithLabels{}, err
+	}
+	if err := yaml.Unmarshal(dat, res); err != nil {
+		return []LuetPackageWithLabels{}, err
+	}
+	return res.Packages, nil
+}
+
+func (c Collection) Find(p LuetPackageWithLabels) (int, error) {
+	for i, ps := range c {
+		if ps.Match(p.LuetPackage) {
+			return i, nil
+		}
+	}
+	return 0, errors.New("not found")
+}
+
 func (p LuetPackage) ReadLabels() (map[string]string, error) {
 	result := map[string]string{}
 	// If it is a collection, we have to loop over and check which one is the corresponding package we are looking into
 	if p.IsCollection() {
-		res := &packagesLabels{}
-		dat, err := ioutil.ReadFile(filepath.Join(p.Path, collectionFile))
+		coll, err := ReadCollection(p.Path)
 		if err != nil {
 			return result, err
 		}
-		if err := yaml.Unmarshal(dat, res); err != nil {
-			return result, err
-		}
-		for _, ps := range res.Packages {
+		for _, ps := range coll {
 			if ps.Match(p) {
 				result = ps.Labels
 				break

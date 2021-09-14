@@ -1,4 +1,4 @@
-package autobumper_test
+package crawler_test
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestAutobumper(t *testing.T) {
+func TestCrawler(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Autobumper test suite")
+	RunSpecs(t, "Crawler test suite")
 }
