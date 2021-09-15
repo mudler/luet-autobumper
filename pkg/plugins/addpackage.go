@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 
 	"github.com/Luet-lab/luet-autobumper/pkg/autobumper"
+	"github.com/Luet-lab/luet-autobumper/pkg/utils"
 	"github.com/otiai10/copy"
 )
 
-type AddPackage struct {
-}
+type AddPackage struct {}
 
 func (add *AddPackage) Bump(src autobumper.LuetPackageWithLabels, dst autobumper.LuetPackageWithLabels) error {
 	log.Info("Bumping %s to %s", src, dst)
@@ -26,20 +26,47 @@ func (add *AddPackage) Bump(src autobumper.LuetPackageWithLabels, dst autobumper
 		}
 		f := &dst
 		f.Path = filepath.Join(dir, fmt.Sprintf("%s-%s", dst.Name, dst.Version))
-		f.SetField("version", dst.Version)
-	} else {
-		// TODO:
-		// Copy src portion over and append
-		// modify version
-
+		return f.SetField("version", dst.Version)
 	}
-	return src.SetField("version", dst.Version)
+
+	// Read the collection, and find the src
+	coll, err := autobumper.ReadCollection(src.Path)
+	if err != nil {
+		return err
+	}
+
+	index, err := autobumper.Collection(coll).Find(src.WithLabels())
+	if err != nil {
+		return err
+	}
+
+	// copy from src to a new list item with yq:
+	// We use yq to preserve fields outside of structs,
+	// comments, etc.
+	if err := utils.YQ(
+		fmt.Sprintf(".packages[%d] = .packages[%d]",
+			len(coll),
+			index,
+		),
+		filepath.Join(src.Path, "collection.yaml"),
+	); err != nil {
+		return err
+	}
+
+	// set new version
+	if err := utils.YQ(
+		fmt.Sprintf(".packages[%d].version = %s",
+			len(coll),
+			dst.Version,
+		),
+		filepath.Join(src.Path, "collection.yaml"),
+	); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (add *AddPackage) Apply(p autobumper.LuetPackageWithLabels) bool {
-	if p.Labels["autobump.newcopy"] != "true" {
-		return false
-	}
-
-	return true
+	return p.Labels["autobump.newcopy"] == "true" || p.Labels["autobump.inplace"] == "false"
 }
