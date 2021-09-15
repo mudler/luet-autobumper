@@ -4,14 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/Luet-lab/luet-autobumper/pkg/utils"
-	"github.com/mikefarah/yq/v4/pkg/yqlib"
 	"github.com/pkg/errors"
-	logging "gopkg.in/op/go-logging.v1"
 	"gopkg.in/yaml.v2"
 )
 
@@ -51,17 +48,6 @@ func (p LuetPackage) Label(s string) string {
 }
 
 func (p LuetPackage) SetField(field, value string) error {
-	// Mute logging from yqlib to just errors
-	var f = logging.MustStringFormatter(
-		`%{color}%{time:15:04:05} %{shortfunc} [%{level:.4s}]%{color:reset} %{message}`,
-	)
-	var backend = logging.AddModuleLevel(
-		logging.NewBackendFormatter(logging.NewLogBackend(os.Stderr, "", 0), f))
-
-	backend.SetLevel(logging.ERROR, "")
-	logging.SetBackend(backend)
-
-	var completedSuccessfully bool
 	var expr string
 	if !p.IsCollection() {
 
@@ -81,26 +67,7 @@ func (p LuetPackage) SetField(field, value string) error {
 		expr = fmt.Sprintf(".packages[%d].%s = \"%s\"", index, field, value)
 
 	}
-	format, err := yqlib.OutputFormatFromString("yaml")
-	if err != nil {
-		return err
-	}
-	writeInPlaceHandler := yqlib.NewWriteInPlaceHandler(p.GetPath())
-	out, err := writeInPlaceHandler.CreateTempFile()
-	if err != nil {
-		return err
-	}
-	// need to indirectly call the function so  that completedSuccessfully is
-	// passed when we finish execution as opposed to now
-	defer func() { writeInPlaceHandler.FinishWriteInPlace(completedSuccessfully) }()
-
-	printer := yqlib.NewPrinter(out, format, false, false, 0, false)
-
-	streamEvaluator := yqlib.NewStreamEvaluator()
-
-	err = streamEvaluator.EvaluateFiles(expr, []string{p.GetPath()}, printer, true)
-	completedSuccessfully = err == nil
-	return err
+	return utils.YQ(expr, p.GetPath())
 }
 
 func (p LuetPackage) GetPath() string {
@@ -108,6 +75,10 @@ func (p LuetPackage) GetPath() string {
 		return filepath.Join(p.Path, collectionFile)
 	}
 	return filepath.Join(p.Path, definitionFile)
+}
+
+func (p LuetPackage) String() string {
+	return fmt.Sprintf("%s/%s@%s", p.Category, p.Name, p.Version)
 }
 
 func (p LuetPackage) WithLabels() LuetPackageWithLabels {

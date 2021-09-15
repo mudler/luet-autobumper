@@ -1,5 +1,7 @@
 package autobumper
 
+import logging "gopkg.in/op/go-logging.v1"
+
 type GitOptions struct {
 	Auto        bool
 	Signoff     bool
@@ -20,6 +22,7 @@ type Config struct {
 	Luet      *LuetOptions
 	PkgApi    string
 	KeepGoing bool
+	LogLevel  logging.Level
 
 	// crawlers simply detect new versions from a defined source
 	crawlers []crawler

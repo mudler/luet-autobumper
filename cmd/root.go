@@ -48,6 +48,7 @@ within packages labels.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		ab := autobumper.New(
+			autobumper.WithTreePath(args[0]),
 			autobumper.WithCrawler(
 				&crawler.Snapshot{},
 			),

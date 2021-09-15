@@ -34,8 +34,11 @@ func (rdeps *Revdeps) Bump(src autobumper.LuetPackageWithLabels, dst autobumper.
 				// we could not convert the value after '+' to int, so we skip
 				continue
 			}
+			log.Info("(revdep of %s) Bumping %s to %s", src, d, dat[0]+"+"+fmt.Sprint(revVersionI+1))
+
 			d.SetField("version", dat[0]+"+"+fmt.Sprint(revVersionI+1))
 		} else {
+			log.Info("(revdep of %s) Bumping %s to %s", src, d, v+"+0")
 			d.SetField("version", v+"+0")
 		}
 	}

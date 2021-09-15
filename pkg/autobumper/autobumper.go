@@ -1,6 +1,11 @@
 package autobumper
 
-import "github.com/hashicorp/go-multierror"
+import (
+	"os"
+
+	"github.com/hashicorp/go-multierror"
+	logging "gopkg.in/op/go-logging.v1"
+)
 
 type crawler interface {
 	// Crawl return a boolean and a string
@@ -25,8 +30,9 @@ type Bumps struct {
 
 func New(p ...Option) *AutoBumper {
 	c := Config{
-		Git:  &GitOptions{},
-		Luet: &LuetOptions{},
+		Git:      &GitOptions{},
+		Luet:     &LuetOptions{},
+		LogLevel: logging.INFO,
 	}
 	c.Apply(p...)
 
@@ -34,8 +40,6 @@ func New(p ...Option) *AutoBumper {
 		config: c,
 	}
 }
-
-// TODO: Retrieve labels for behavior. Decide how to bump (inplace, add a new package)
 
 func (ab *AutoBumper) Bump(src LuetPackage, bumps Bumps) error {
 	for _, p := range ab.config.plugins {
@@ -49,6 +53,17 @@ func (ab *AutoBumper) Bump(src LuetPackage, bumps Bumps) error {
 }
 
 func (ab *AutoBumper) Run() (Bumps, error) {
+
+	var f = logging.MustStringFormatter(
+		`%{color}%{time:15:04:05} %{shortfunc} [%{level:.4s}]%{color:reset} %{message}`,
+	)
+	var backend = logging.AddModuleLevel(
+		logging.NewBackendFormatter(logging.NewLogBackend(os.Stderr, "", 0), f))
+
+	// Include logging from yqlib
+
+	backend.SetLevel(ab.config.LogLevel, "")
+	logging.SetBackend(backend)
 
 	b := Bumps{Diffs: make(map[LuetPackage]LuetPackage)}
 
