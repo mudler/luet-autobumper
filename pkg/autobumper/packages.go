@@ -4,11 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/Luet-lab/luet-autobumper/pkg/utils"
+	"github.com/mikefarah/yq/v4/pkg/yqlib"
 	"github.com/pkg/errors"
+	logging "gopkg.in/op/go-logging.v1"
 	"gopkg.in/yaml.v2"
 )
 
@@ -45,6 +48,59 @@ func (p LuetPackage) Label(s string) string {
 		return v
 	}
 	return ""
+}
+
+func (p LuetPackage) SetField(field, value string) error {
+	// Mute logging from yqlib to just errors
+	var f = logging.MustStringFormatter(
+		`%{color}%{time:15:04:05} %{shortfunc} [%{level:.4s}]%{color:reset} %{message}`,
+	)
+	var backend = logging.AddModuleLevel(
+		logging.NewBackendFormatter(logging.NewLogBackend(os.Stderr, "", 0), f))
+
+	backend.SetLevel(logging.ERROR, "")
+	logging.SetBackend(backend)
+
+	var completedSuccessfully bool
+	var expr string
+	if !p.IsCollection() {
+
+		expr = fmt.Sprintf(".%s = \"%s\"", field, value)
+	} else {
+		// 1: find the package inside the collection (index)
+		coll, err := ReadCollection(p.Path)
+		if err != nil {
+			return err
+		}
+
+		index, err := Collection(coll).Find(p.WithLabels())
+		if err != nil {
+			return err
+		}
+		// 2: find the respective yaml.Node
+		expr = fmt.Sprintf(".packages[%d].%s = \"%s\"", index, field, value)
+
+	}
+	format, err := yqlib.OutputFormatFromString("yaml")
+	if err != nil {
+		return err
+	}
+	writeInPlaceHandler := yqlib.NewWriteInPlaceHandler(p.GetPath())
+	out, err := writeInPlaceHandler.CreateTempFile()
+	if err != nil {
+		return err
+	}
+	// need to indirectly call the function so  that completedSuccessfully is
+	// passed when we finish execution as opposed to now
+	defer func() { writeInPlaceHandler.FinishWriteInPlace(completedSuccessfully) }()
+
+	printer := yqlib.NewPrinter(out, format, false, false, 0, false)
+
+	streamEvaluator := yqlib.NewStreamEvaluator()
+
+	err = streamEvaluator.EvaluateFiles(expr, []string{p.GetPath()}, printer, true)
+	completedSuccessfully = err == nil
+	return err
 }
 
 func (p LuetPackage) GetPath() string {
@@ -151,8 +207,22 @@ func (pp Packages) In(c LuetPackage) bool {
 	return false
 }
 
-func (ab *AutoBumper) getPackages(dir string) ([]LuetPackage, error) {
-	jsonPacks, err := utils.RunSH(fmt.Sprintf("luet tree pkglist --tree %s -o json", ab.config.Luet.PackageTreePath))
+func GetPackages(dir string) ([]LuetPackage, error) {
+	jsonPacks, err := utils.RunSH(fmt.Sprintf("luet tree pkglist --tree %s -o json", dir))
+	if err != nil {
+		return []LuetPackage{}, errors.Wrap(err, "failed getting packages with luet")
+	}
+
+	packages := &TreeResult{}
+	if err := json.Unmarshal([]byte(jsonPacks), packages); err != nil {
+		return []LuetPackage{}, errors.Wrap(err, "failed getting packages with luet")
+	}
+
+	return packages.Packages, nil
+}
+
+func GetPackagesRevdeps(dir, revdep string) ([]LuetPackage, error) {
+	jsonPacks, err := utils.RunSH(fmt.Sprintf("luet tree pkglist -b -m \"%s\" --revdeps -o json --tree %s", revdep, dir))
 	if err != nil {
 		return []LuetPackage{}, errors.Wrap(err, "failed getting packages with luet")
 	}

@@ -1,0 +1,6 @@
+{{ if or (eq .Values.name "bar") (eq .Values.name "bo")}}
+requires:
+- category: "test"
+  name: "foo"
+  version: ">=0"
+{{end}}

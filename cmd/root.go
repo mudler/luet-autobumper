@@ -23,6 +23,8 @@ import (
 	"github.com/spf13/viper"
 
 	autobumper "github.com/Luet-lab/luet-autobumper/pkg/autobumper"
+	"github.com/Luet-lab/luet-autobumper/pkg/crawler"
+	"github.com/Luet-lab/luet-autobumper/pkg/plugins"
 )
 
 var cfgFile string
@@ -45,8 +47,21 @@ It will crawl online sources (like github) to detect new versions, allowing to c
 within packages labels.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-			ab:=autobumper.New()
-			ab.Run()
+		ab := autobumper.New(
+			autobumper.WithCrawler(
+				&crawler.Snapshot{},
+			),
+			autobumper.WithPlugin(
+				&plugins.Inplace{},
+				&plugins.Revdeps{Tree: args[0]},
+			),
+		)
+		b, err := ab.Run()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		fmt.Println(b)
 	},
 }
 

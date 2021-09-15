@@ -1,0 +1,16 @@
+packages:
+- category: "test"
+  name: "foo"
+  version: "1.0"
+  labels:
+    version: "baz"
+- category: "test"
+  name: "bar"
+  version: "1.0"
+  labels:
+    version: "baz"
+- category: "test"
+  name: "bo"
+  version: "1.0+1"
+  labels:
+    version: "baz"

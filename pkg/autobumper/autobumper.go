@@ -43,7 +43,6 @@ func (ab *AutoBumper) Bump(src LuetPackage, bumps Bumps) error {
 			if err := p.Bump(src.WithLabels(), bumps.Diffs[src].WithLabels()); err != nil {
 				return err
 			}
-			break
 		}
 	}
 	return nil
@@ -53,7 +52,7 @@ func (ab *AutoBumper) Run() (Bumps, error) {
 
 	b := Bumps{Diffs: make(map[LuetPackage]LuetPackage)}
 
-	packs, err := ab.getPackages(ab.config.Luet.PackageTreePath)
+	packs, err := GetPackages(ab.config.Luet.PackageTreePath)
 	if err != nil {
 		return b, err
 	}
