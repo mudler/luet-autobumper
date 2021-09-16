@@ -78,7 +78,13 @@ func (ab *AutoBumper) Run() (Bumps, error) {
 		for _, c := range ab.config.crawlers {
 			pLabels := p.WithLabels()
 			if c.Apply(pLabels) {
-				if found, version := c.Crawl(pLabels); found && !Packages(packs).In(p.WithVersion(version)) {
+				// Reload to allow changes in the tree to add new versions but we stop at first copy
+				pp, err := GetPackages(ab.config.Luet.PackageTreePath)
+				if err != nil {
+					return b, err
+				}
+
+				if found, version := c.Crawl(pLabels); found && !Packages(pp).In(p.WithVersion(version)) {
 					b.Diffs[p] = p.WithVersion(version)
 					if berr := ab.Bump(p, b); berr != nil {
 						err = multierror.Append(err, berr)

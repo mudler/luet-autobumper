@@ -15,7 +15,7 @@ import (
 
 var _ = Describe("Add package plugin", func() {
 	Context("applies", func() {
-		It("detects when applying a new copy instead of ", func() {
+		It("detects when applying a new copy instead of inplace ", func() {
 			in := AddPackage{}
 			Expect(in.Apply(autobumper.LuetPackageWithLabels{
 				Labels: map[string]string{"autobump.newcopy": "true"},
@@ -31,7 +31,7 @@ var _ = Describe("Add package plugin", func() {
 			})).To(BeFalse())
 		})
 
-		It("bumps a package revdeps", func() {
+		It("bumps a package by adding a new entry instead of replacing", func() {
 			dir, err := ioutil.TempDir(os.TempDir(), "")
 			Expect(err).ToNot(HaveOccurred())
 
